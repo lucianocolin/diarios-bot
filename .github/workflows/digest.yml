@@ -1,0 +1,72 @@
+name: Digest de diarios
+
+on:
+  schedule:
+    # Argentina es UTC-3 todo el año (no tiene horario de verano).
+    # 14:00 ART = 17:00 UTC, de lunes a viernes.
+    - cron: "0 17 * * 1-5"
+    # 21:00 ART = 00:00 UTC del día siguiente, por eso van martes a sábado UTC
+    # (que son lunes a viernes en Argentina).
+    - cron: "0 0 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generar sin enviar"
+        type: boolean
+        default: false
+
+concurrency:
+  group: digest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Generar la página
+        run: python -m bot.main --dry-run
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Enviar por WhatsApp
+        if: ${{ inputs.dry_run != true }}
+        env:
+          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+          WHATSAPP_DESTINO: ${{ secrets.WHATSAPP_DESTINO }}
+          WHATSAPP_PLANTILLA: ${{ vars.WHATSAPP_PLANTILLA || 'resumen_diarios' }}
+          WHATSAPP_IDIOMA: ${{ vars.WHATSAPP_IDIOMA || 'es_AR' }}
+          MODO_ENVIO: ${{ vars.MODO_ENVIO || 'plantilla' }}
+        # La página ya quedó publicada arriba; acá solo se manda el aviso,
+        # reutilizando ese mismo digest para que los números coincidan.
+        run: python -m bot.main --desde-json
+
+      - name: Guardar el digest como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ github.run_id }}
+          path: out/
+          retention-days: 7

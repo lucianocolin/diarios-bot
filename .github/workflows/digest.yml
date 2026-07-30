@@ -50,17 +50,14 @@ jobs:
       - id: deploy
         uses: actions/deploy-pages@v4
 
-      - name: Enviar por WhatsApp
+      - name: Enviar por Telegram
         if: ${{ inputs.dry_run != true }}
         env:
-          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
-          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
-          WHATSAPP_DESTINO: ${{ secrets.WHATSAPP_DESTINO }}
-          WHATSAPP_PLANTILLA: ${{ vars.WHATSAPP_PLANTILLA || 'resumen_diarios' }}
-          WHATSAPP_IDIOMA: ${{ vars.WHATSAPP_IDIOMA || 'es_AR' }}
-          MODO_ENVIO: ${{ vars.MODO_ENVIO || 'plantilla' }}
-        # La página ya quedó publicada arriba; acá solo se manda el aviso,
-        # reutilizando ese mismo digest para que los números coincidan.
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CANAL: telegram
+        # Reutiliza el digest que se generó arriba, para no scrapear dos veces
+        # y que los números del mensaje coincidan con los de la página.
         run: python -m bot.main --desde-json
 
       - name: Guardar el digest como artefacto

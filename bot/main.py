@@ -1,9 +1,14 @@
-"""Punto de entrada: arma el digest, publica la página y lo manda por WhatsApp.
+"""Punto de entrada: arma el digest, publica la página y la manda por Telegram.
 
 Uso:
-    python -m bot.main --dry-run          # no envía nada, deja la página en out/
-    python -m bot.main --modo libre       # texto completo (ventana de 24 h abierta)
-    python -m bot.main                    # plantilla aprobada (envío programado)
+    python -m bot.main --dry-run                  # no envía, deja la página en out/
+    python -m bot.main                            # digest completo por Telegram
+    python -m bot.main --canal whatsapp           # plantilla de Meta (ver README)
+    python -m bot.main --canal whatsapp --modo libre
+
+Telegram es el canal por defecto porque es el único donde el digest entero entra
+en el mensaje: WhatsApp topea las plantillas en 1024 caracteres y el digest ronda
+los 12.000.
 """
 
 from __future__ import annotations
@@ -15,54 +20,76 @@ import os
 import pathlib
 import sys
 
-from . import render, whatsapp
-from .aggregate import recolectar
+from datetime import datetime
+
+from . import render, telegram, whatsapp
+from .aggregate import Digest, recolectar
+from .config import ConfigFaltante, ErrorDeEnvio, cfg
+from .sources import Articulo
 
 log = logging.getLogger("diarios-bot")
 
 SALIDA = pathlib.Path(os.environ.get("SALIDA_DIR", "out"))
 
 
-def _enviar_desde_json(args) -> int:
-    """Avisa por WhatsApp usando el digest ya generado y publicado.
+def _digest_desde_json() -> Digest:
+    """Reconstruye el digest ya generado, para no scrapear dos veces.
 
-    Evita scrapear dos veces y garantiza que los números del mensaje coincidan
-    con la página que ella va a abrir.
+    Lo usa el workflow: primero genera y publica la página, después manda el
+    mensaje a partir de este mismo JSON, así los números coinciden.
     """
-    ruta = SALIDA / "digest.json"
-    if not ruta.exists():
-        log.error("No existe %s; corré primero la generación.", ruta)
-        return 1
-    datos = json.loads(ruta.read_text(encoding="utf-8"))
-    articulos = datos["articulos"]
-    medios = {a["medio"] for a in articulos}
-    hora = int(datos["generado"][11:13])
-    franja = "mediodía" if hora < 18 else "noche"
-
-    if args.dry_run:
-        log.info("Dry-run: se habría avisado (%s, %d notas, %d diarios).",
-                 franja, len(articulos), len(medios))
-        return 0
-
-    whatsapp.enviar_plantilla(
-        whatsapp._cfg("WHATSAPP_DESTINO"),
-        nombre_plantilla=whatsapp._cfg("WHATSAPP_PLANTILLA"),
-        idioma=os.environ.get("WHATSAPP_IDIOMA", "es_AR"),
-        parametros=[franja, str(len(articulos)), str(len(medios))],
-        sufijo_url=os.environ.get("PAGINA_SUFIJO") or None,
+    datos = json.loads((SALIDA / "digest.json").read_text(encoding="utf-8"))
+    return Digest(
+        generado=datetime.fromisoformat(datos["generado"]),
+        articulos=[Articulo(**a) for a in datos["articulos"]],
+        fallidos=datos.get("fallidos") or {},
     )
-    log.info("Aviso enviado (%s, %d notas, %d diarios).", franja, len(articulos), len(medios))
-    return 0
+
+
+def _enviar(digest: Digest, args) -> None:
+    """Manda el digest por el canal elegido."""
+    if args.canal == "telegram":
+        destino = cfg("TELEGRAM_CHAT_ID")
+        cfg("TELEGRAM_TOKEN")  # falla acá y no a mitad del envío
+        trozos = render.trozos(render.texto_telegram(digest), limite=telegram.LIMITE - 96)
+        log.info("Enviando %d mensajes por Telegram...", len(trozos))
+        telegram.enviar(destino, trozos)
+        return
+
+    destino = cfg("WHATSAPP_DESTINO")
+    if args.modo == "libre":
+        trozos = render.trozos(render.texto(digest))
+        log.info("Enviando %d mensajes de texto libre por WhatsApp...", len(trozos))
+        whatsapp.enviar_texto_libre(destino, trozos)
+    else:
+        franja = "mediodía" if digest.generado.hour < 18 else "noche"
+        whatsapp.enviar_plantilla(
+            destino,
+            nombre_plantilla=cfg("WHATSAPP_PLANTILLA"),
+            idioma=os.environ.get("WHATSAPP_IDIOMA", "es_AR"),
+            parametros=[
+                franja,
+                str(len(digest.articulos)),
+                str(len(digest.por_medio)),
+            ],
+            sufijo_url=os.environ.get("PAGINA_SUFIJO") or None,
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Digest de diarios argentinos")
     p.add_argument("--dry-run", action="store_true", help="no envía, solo genera archivos")
     p.add_argument(
+        "--canal",
+        choices=["telegram", "whatsapp"],
+        default=os.environ.get("CANAL", "telegram"),
+        help="telegram manda el digest completo; whatsapp requiere plantilla aprobada",
+    )
+    p.add_argument(
         "--modo",
         choices=["plantilla", "libre"],
         default=os.environ.get("MODO_ENVIO", "plantilla"),
-        help="plantilla = envío programado; libre = requiere ventana de 24 h abierta",
+        help="solo para --canal whatsapp: libre requiere ventana de 24 h abierta",
     )
     p.add_argument("--notas", type=int, default=50, help="cantidad total de notas")
     p.add_argument(
@@ -77,7 +104,17 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.desde_json:
-        return _enviar_desde_json(args)
+        ruta = SALIDA / "digest.json"
+        if not ruta.exists():
+            log.error("No existe %s; corré primero la generación.", ruta)
+            return 1
+        digest = _digest_desde_json()
+        if args.dry_run:
+            log.info("Dry-run: no se envía nada.")
+            return 0
+        _enviar(digest, args)
+        log.info("Enviado por %s (%d notas).", args.canal, len(digest.articulos))
+        return 0
 
     digest = recolectar(objetivo=args.notas)
     log.info(
@@ -113,35 +150,17 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Dry-run: no se envía nada.")
         return 0
 
-    destino = whatsapp._cfg("WHATSAPP_DESTINO")
-
-    if args.modo == "libre":
-        trozos = render.trozos_whatsapp(render.texto(digest))
-        log.info("Enviando %d mensajes de texto libre...", len(trozos))
-        whatsapp.enviar_texto_libre(destino, trozos)
-    else:
-        franja = "mediodía" if digest.generado.hour < 18 else "noche"
-        whatsapp.enviar_plantilla(
-            destino,
-            nombre_plantilla=whatsapp._cfg("WHATSAPP_PLANTILLA"),
-            idioma=os.environ.get("WHATSAPP_IDIOMA", "es_AR"),
-            parametros=[
-                franja,
-                str(len(digest.articulos)),
-                str(len(digest.por_medio)),
-            ],
-            sufijo_url=os.environ.get("PAGINA_SUFIJO") or None,
-        )
-    log.info("Enviado.")
+    _enviar(digest, args)
+    log.info("Enviado por %s (%d notas).", args.canal, len(digest.articulos))
     return 0
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except whatsapp.ConfigFaltante as e:
+    except ConfigFaltante as e:
         log.error("%s. Ver el README para el alta de credenciales.", e)
         sys.exit(2)
-    except whatsapp.ErrorDeEnvio as e:
-        log.error("WhatsApp rechazó el envío. %s", e)
+    except ErrorDeEnvio as e:
+        log.error("El envío fue rechazado. %s", e)
         sys.exit(3)

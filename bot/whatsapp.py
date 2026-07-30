@@ -13,29 +13,16 @@ digest completo como mensaje común (útil para probar sin esperar aprobación).
 from __future__ import annotations
 
 import logging
-import os
 
 import requests
+
+# Se reexportan para no romper a quien los importe desde acá.
+from .config import ConfigFaltante, ErrorDeEnvio, cfg as _cfg  # noqa: F401
 
 log = logging.getLogger(__name__)
 
 API = "https://graph.facebook.com/v21.0"
 TIMEOUT = 30
-
-
-class ConfigFaltante(RuntimeError):
-    pass
-
-
-class ErrorDeEnvio(RuntimeError):
-    pass
-
-
-def _cfg(clave: str, obligatorio: bool = True) -> str:
-    v = os.environ.get(clave, "").strip()
-    if obligatorio and not v:
-        raise ConfigFaltante(f"Falta la variable de entorno {clave}")
-    return v
 
 
 def _post(payload: dict) -> dict:

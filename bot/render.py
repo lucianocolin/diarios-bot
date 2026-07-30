@@ -40,18 +40,49 @@ def texto(digest: Digest) -> str:
     return "\n".join(partes).strip()
 
 
-def trozos_whatsapp(texto_completo: str, limite: int = 4000) -> list[str]:
-    """Parte el texto en mensajes que entren en el límite de WhatsApp (4096)."""
-    trozos, actual = [], ""
+def texto_telegram(digest: Digest) -> str:
+    """Mismo digest, con el markup HTML que entiende Telegram.
+
+    Va todo escapado: los títulos traen comillas y las URLs traen `&` en el
+    query string, que con `parse_mode=HTML` Telegram interpretaría como entidad.
+    """
+    e = html.escape
+    partes = [
+        f"<b>{e(SALUDO[_franja(digest)])}</b> — {e(_fecha_larga(digest))}",
+        f"<i>{len(digest.articulos)} notas de {len(digest.por_medio)} diarios</i>",
+        "",
+    ]
+    for medio, notas in digest.por_medio.items():
+        marca = "" if notas[0].ranking == "real" else " (portada)"
+        partes.append(f"<b>{e(medio)}</b>{e(marca)}")
+        for i, a in enumerate(notas, 1):
+            partes.append(f"{i}. {e(a.titulo)}\n{e(a.url)}")
+        partes.append("")
+    if digest.fallidos:
+        partes.append(f"<i>Sin datos: {e(', '.join(digest.fallidos))}</i>")
+    return "\n".join(partes).strip()
+
+
+def trozos(texto_completo: str, limite: int = 4000) -> list[str]:
+    """Parte el texto en mensajes que entren en el límite del canal.
+
+    Corta entre bloques (párrafo vacío) para no partir una nota al medio.
+    WhatsApp y Telegram topean los dos en 4096; se deja margen.
+    """
+    salida, actual = [], ""
     for bloque in texto_completo.split("\n\n"):
         if len(actual) + len(bloque) + 2 > limite:
             if actual:
-                trozos.append(actual.strip())
+                salida.append(actual.strip())
             actual = ""
         actual += bloque + "\n\n"
     if actual.strip():
-        trozos.append(actual.strip())
-    return trozos
+        salida.append(actual.strip())
+    return salida
+
+
+# El nombre viejo, para no romper nada que lo importe.
+trozos_whatsapp = trozos
 
 
 def pagina_html(digest: Digest) -> str:

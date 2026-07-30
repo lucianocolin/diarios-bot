@@ -1,7 +1,9 @@
 # Digest de diarios argentinos
 
-Junta 50 notas de los 10 diarios más leídos del país, publica una página con el
-listado y avisa por WhatsApp a las 14 y a las 21, de lunes a viernes.
+Junta 50 notas de los 10 diarios más leídos del país, las manda por Telegram a
+las 14 y a las 21 de lunes a viernes, y publica además una página con el listado.
+
+Página: <https://lucianocolin.github.io/diarios-bot/>
 
 ## Lo primero que hay que saber: qué es "más leídas" acá
 
@@ -35,14 +37,63 @@ python -m bot.main --dry-run
 Deja `out/index.html` (la página), `out/digest.txt` y `out/digest.json`. No envía
 nada. Abrí el HTML en el navegador para ver cómo le va a llegar.
 
-## Configurar WhatsApp
+## Por qué Telegram y no WhatsApp
 
-WhatsApp no deja mandar mensajes libres a alguien que no te escribió en las
-últimas 24 h. Un envío programado a las 14 y a las 21 cae siempre fuera de esa
-ventana, así que **necesita una plantilla aprobada por Meta**. Y como los
-parámetros de plantilla no admiten saltos de línea, las 50 notas no entran en el
-mensaje: por eso el bot publica la página y la plantilla lleva un botón que la
-abre.
+Se intentó primero con WhatsApp y no da: un envío programado a las 14 cae fuera
+de la ventana de 24 h desde el último mensaje de la persona, así que tiene que
+salir como plantilla aprobada por Meta, y **una plantilla topea en 1024
+caracteres**. El digest ronda los 12.400: entran unas 4 notas de 50. Encima los
+valores de las variables no admiten saltos de línea, así que saldrían todas
+pegadas en un renglón. Acortar los links no alcanza — aun con links de 20
+caracteres serían unos 6.000.
+
+Telegram no tiene plantillas, ni aprobación, ni ventana de 24 h, y permite 4096
+caracteres por mensaje. El digest entero sale en 4 mensajes con los títulos y los
+links adentro, que es lo que se quería.
+
+El código de WhatsApp quedó en `bot/whatsapp.py` y se puede usar con
+`--canal whatsapp`, pero con las limitaciones de arriba.
+
+## Configurar Telegram
+
+### 1. Crear el bot
+
+1. Escribirle a [@BotFather](https://t.me/BotFather) en Telegram: `/newbot`,
+   nombre y username (tiene que terminar en `bot`).
+2. Anota el **token** que te devuelve, con forma `123456789:AAE...`.
+
+### 2. Averiguar el chat_id
+
+La persona que va a recibir el digest tiene que **darle `/start` al bot una vez**
+(si no, Telegram no deja escribirle). Después:
+
+```bash
+TELEGRAM_TOKEN=<el token> python -c "
+from bot import telegram
+for c in telegram.chats_recientes():
+    print(c['id'], c.get('first_name') or c.get('title'))"
+```
+
+Ese número es el `chat_id`. Es estable, se saca una sola vez.
+
+### 3. Secrets del repo
+
+En *Settings → Secrets and variables → Actions*:
+
+| Secret | Qué es |
+| --- | --- |
+| `TELEGRAM_TOKEN` | El token de BotFather |
+| `TELEGRAM_CHAT_ID` | El chat_id del paso 2 |
+
+### 4. Activar GitHub Pages
+
+*Settings → Pages → Source: **GitHub Actions***. La página se republica en cada
+corrida. Es opcional: el digest llega completo por Telegram igual.
+
+## Configurar WhatsApp (alternativa limitada)
+
+Solo llegan ~4 notas por mensaje, por el tope de 1024 caracteres. Se corre con
+`--canal whatsapp`.
 
 ### 1. Alta en Meta
 
@@ -56,12 +107,21 @@ abre.
    > "elegí tipo de app *Empresa*", está desactualizado: Meta lo reemplazó por la
    > selección de caso de uso.
 
-2. En *Personalizar caso de uso → Conectar en WhatsApp → Guía de inicio rápido*,
-   anotar el **Phone number ID**.
+2. Pasar el mouse por **Casos de uso** en el menú izquierdo → **ícono de lápiz** →
+   botón **Personalizar** del caso de uso de WhatsApp → **Configuración de la
+   API**. Ahí está el **Phone number ID**, debajo del desplegable del número.
+
+   > Meta movió esto: antes estaba en *Guía de inicio rápido*. Si la app se creó
+   > con otro caso de uso, el lápiz no ofrece WhatsApp; en ese caso hay que ir al
+   > Panel → *Agregar productos* → **WhatsApp** → Configurar.
 3. Generar un **token permanente**: Business Settings → Users → System Users →
-   crear un system user admin → Add Assets (la app de WhatsApp) → Generate Token
-   con permisos `whatsapp_business_messaging` y `whatsapp_business_management`.
-   El token de prueba de 24 h no sirve para algo programado.
+   crear un system user admin → Add Assets → Generate Token con permisos
+   `whatsapp_business_messaging` y `whatsapp_business_management`. El token de
+   prueba de 24 h no sirve para algo programado.
+
+   > En *Add Assets* hay que asignarle **la cuenta de WhatsApp Business (WABA),
+   > no solo la app**, con control total. Si no, el token se genera igual pero
+   > los envíos vuelven con `403 / object does not exist`.
 4. El número de ella tiene que estar en *Recipients* mientras la app esté en modo
    desarrollo.
 
@@ -72,26 +132,30 @@ En *WhatsApp Manager → Message Templates → Create*:
 - **Nombre**: `resumen_diarios`
 - **Categoría**: Utility (se aprueba más rápido que Marketing)
 - **Idioma**: Español (AR) → código `es_AR`
-- **Body**:
+- **Body** (con variables **numeradas**, no con nombre: el código manda
+  parámetros posicionales y con variables nombradas falla con error 132000):
 
   ```
   Hola! Listo el resumen de la {{1}}: {{2}} notas de {{3}} diarios argentinos.
   ```
 
-- **Botón**: tipo *Visit website* → **Dynamic** → URL base la de tu GitHub Pages
-  (`https://<usuario>.github.io/<repo>/`), texto del botón "Ver las notas".
+  Meta pide valores de ejemplo para revisar la plantilla. Son solo para eso, no
+  se mandan: `{{1}}` → `mediodía`, `{{2}}` → `50`, `{{3}}` → `10`.
+
+- **Botón**: tipo *Visit website* → **Static** → la URL de la página. Static y no
+  Dynamic: una URL dinámica exige mandar el parámetro del botón en cada envío, y
+  `PAGINA_SUFIJO` no está definida, así que el envío fallaría con "number of
+  parameters does not match". La página vive siempre en la misma dirección.
 
 La aprobación suele tardar entre minutos y unas horas.
 
-### 3. Secrets del repo
-
-En *Settings → Secrets and variables → Actions*:
+### 3. Secrets
 
 | Secret | Qué es |
 | --- | --- |
 | `WHATSAPP_TOKEN` | El token permanente del system user |
 | `WHATSAPP_PHONE_NUMBER_ID` | El Phone number ID del paso 1 |
-| `WHATSAPP_DESTINO` | El número de ella con código de país y sin `+` (ej. `5491155551234`) |
+| `WHATSAPP_DESTINO` | El número con código de país y sin `+`. Argentina lleva el `9` de celular: `5493815165415`, no `543815165415` |
 
 Y como *Variables* (opcionales, tienen default):
 
@@ -99,11 +163,6 @@ Y como *Variables* (opcionales, tienen default):
 | --- | --- |
 | `WHATSAPP_PLANTILLA` | `resumen_diarios` |
 | `WHATSAPP_IDIOMA` | `es_AR` |
-
-### 4. Activar GitHub Pages
-
-*Settings → Pages → Source: **GitHub Actions***. La página se republica en cada
-corrida con el contenido nuevo.
 
 ## Los horarios
 
@@ -117,18 +176,17 @@ El scheduler de GitHub Actions no es puntual: suele disparar con 5 a 15 minutos
 de demora, y más si la plataforma está cargada. Si necesitás precisión al
 minuto, conviene un VPS con cron.
 
-## Modo texto completo (sin plantilla)
+## WhatsApp en modo texto completo
 
 Si ella le escribe al bot, se abre la ventana de 24 h y ahí sí se puede mandar el
-digest entero como mensajes normales, sin aprobación de Meta:
+digest entero por WhatsApp, sin plantilla ni aprobación:
 
 ```bash
-MODO_ENVIO=libre python -m bot.main --modo libre
+python -m bot.main --canal whatsapp --modo libre
 ```
 
-Son 3 o 4 mensajes (el digest ronda los 12.000 caracteres y WhatsApp corta en
-4.096). Sirve para probar todo antes de que Meta apruebe la plantilla, pero no
-como mecanismo permanente: si ella no escribe, el envío falla.
+Son 4 mensajes. No sirve como mecanismo permanente: si ella no escribe, falla.
+Es justamente el problema que resuelve Telegram.
 
 ## Cuando un diario cambie el HTML
 

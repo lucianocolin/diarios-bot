@@ -168,13 +168,24 @@ Y como *Variables* (opcionales, tienen default):
 
 Argentina es UTC-3 todo el año, así que los cron del workflow son:
 
-- `0 17 * * 1-5` → 14:00 ART, lunes a viernes.
-- `0 0 * * 2-6` → 21:00 ART, lunes a viernes. Va de martes a sábado **en UTC**
-  porque las 21 de un lunes argentino son las 00:00 del martes UTC.
+- `0 17 * * *` → 14:00 ART, todos los días.
+- `0 0 * * *` → 21:00 ART, todos los días. En UTC cae a las 00:00 del día
+  siguiente, pero al correr los 7 días el corrimiento no cambia nada.
 
 El scheduler de GitHub Actions no es puntual: suele disparar con 5 a 15 minutos
 de demora, y más si la plataforma está cargada. Si necesitás precisión al
 minuto, conviene un VPS con cron.
+
+## Por qué hay un workflow de keepalive
+
+GitHub **deshabilita los workflows programados de un repo público cuando pasan
+60 días sin commits nuevos**, y avisa solo por mail. Las corridas del propio
+cron, los deploys de Pages y los issues no cuentan como actividad: solo cuentan
+los commits. Como este bot no commitea nada (publica la página desde un
+artefacto), sin esto el digest se apagaría solo a los dos meses.
+
+`.github/workflows/keepalive.yml` pushea un commit vacío el día 1 de cada mes y
+resetea ese contador. No toca ningún archivo.
 
 ## WhatsApp en modo texto completo
 

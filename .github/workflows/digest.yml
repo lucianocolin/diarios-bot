@@ -3,11 +3,10 @@ name: Digest de diarios
 on:
   schedule:
     # Argentina es UTC-3 todo el año (no tiene horario de verano).
-    # 14:00 ART = 17:00 UTC, de lunes a viernes.
-    - cron: "0 17 * * 1-5"
-    # 21:00 ART = 00:00 UTC del día siguiente, por eso van martes a sábado UTC
-    # (que son lunes a viernes en Argentina).
-    - cron: "0 0 * * 2-6"
+    # Todos los días: al correr los 7 días ya no hace falta correr el día de la
+    # semana como cuando era de lunes a viernes.
+    - cron: "0 17 * * *"  # 14:00 ART
+    - cron: "0 0 * * *"   # 21:00 ART del día anterior (00:00 UTC)
   workflow_dispatch:
     inputs:
       dry_run:

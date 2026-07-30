@@ -1,0 +1,33 @@
+name: Keepalive
+
+# GitHub deshabilita los workflows programados de un repo público cuando pasan
+# 60 días sin commits nuevos, y avisa solo por mail. Las corridas del cron, los
+# deploys de Pages y los issues no cuentan como actividad: solo los commits.
+#
+# Este workflow pushea un commit vacío una vez por mes para resetear ese
+# contador, así el digest sigue llegando aunque nadie toque el código.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"  # el día 1 de cada mes, 03:00 ART
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Commit vacío para mantener vivos los cron
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "keepalive: mantener activos los workflows programados"
+          git push

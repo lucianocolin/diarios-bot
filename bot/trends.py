@@ -2,9 +2,9 @@
 
 X dejó de tener tier gratis en febrero de 2026: leer posts por la API oficial se
 paga por uso. Pero las tendencias las publican agregadores públicos, y con el
-tema en la mano se puede armar el link a la búsqueda de X ya filtrada a videos.
-El bot no consulta la API de X ni scrapea x.com: solo arma la URL, y el que hace
-la búsqueda es quien toca el link.
+tema en la mano se puede armar el link a la búsqueda de X. El bot no consulta la
+API de X ni scrapea x.com: solo arma la URL, y el que hace la búsqueda es quien
+toca el link.
 
 Fuente principal trends24, con getdaytrends de respaldo: si una cambia el HTML,
 la otra suele seguir andando.
@@ -23,10 +23,10 @@ from .sources import HEADERS, TIMEOUT, SinResultados
 
 log = logging.getLogger(__name__)
 
-# f=top ordena por engagement, que es lo que hace virales a los videos.
-# Sin min_faves a propósito: en temas locales chicos dejaría la búsqueda vacía.
-BUSQUEDA = "https://x.com/search?q={q}&f=top"
-FILTROS = "filter:videos -filter:replies"
+# La búsqueda pelada, sin filtros ni parámetros: X abre la pestaña "Top" por
+# defecto y muestra lo más relevante del tema. Se probó con `filter:videos` y
+# `f=top` y los links no abrían bien desde el celular.
+BUSQUEDA = "https://x.com/search?q={q}"
 
 
 @dataclass
@@ -40,7 +40,7 @@ class Tendencia:
 
 
 def _link(termino: str) -> str:
-    return BUSQUEDA.format(q=quote(f"{termino} {FILTROS}"))
+    return BUSQUEDA.format(q=quote(termino))
 
 
 def _trends24(limite: int) -> list[str]:

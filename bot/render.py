@@ -46,7 +46,7 @@ def texto(digest: Digest) -> str:
         partes.append("")
     if digest.tendencias:
         partes.append("*Tendencias en X (Argentina)*")
-        partes.append("_Cada link abre la búsqueda filtrada a videos_")
+        partes.append("_Cada link abre la búsqueda del tema en X_")
         for tnd in digest.tendencias:
             partes.append(f"{tnd.posicion}. {tnd.termino}\n{tnd.url}")
         partes.append("")
@@ -75,7 +75,7 @@ def texto_telegram(digest: Digest) -> str:
         partes.append("")
     if digest.tendencias:
         partes.append("<b>Tendencias en X (Argentina)</b>")
-        partes.append("<i>Cada link abre la búsqueda filtrada a videos</i>")
+        partes.append("<i>Cada link abre la búsqueda del tema en X</i>")
         for tnd in digest.tendencias:
             partes.append(f"{tnd.posicion}. {e(tnd.termino)}\n{e(tnd.url)}")
         partes.append("")
@@ -130,7 +130,7 @@ def pagina_html(digest: Digest) -> str:
         )
         filas.append(
             '<section><h2>Tendencias en X '
-            '<span class="tag proxy">para buscar videos</span></h2>'
+            '<span class="tag proxy">búsqueda en X</span></h2>'
             f'<ol>{items}</ol></section>'
         )
 

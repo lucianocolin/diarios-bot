@@ -7,6 +7,15 @@ from .aggregate import Digest
 
 SALUDO = {"tarde": "Resumen del mediodía", "noche": "Resumen de la noche"}
 
+# De dónde sale el orden de cada diario. "real" no lleva aclaración: es el caso
+# bueno, el ranking de lecturas que publica el propio medio.
+MARCA = {"real": "", "portada": " (portada)", "recientes": " (últimas publicadas)"}
+ETIQUETA_HTML = {
+    "real": ('real', "ranking del diario"),
+    "portada": ('proxy', "orden de portada"),
+    "recientes": ('proxy', "últimas publicadas"),
+}
+
 
 def _franja(digest: Digest) -> str:
     return "tarde" if digest.generado.hour < 18 else "noche"
@@ -30,7 +39,7 @@ def texto(digest: Digest) -> str:
         "",
     ]
     for medio, notas in digest.por_medio.items():
-        marca = "" if notas[0].ranking == "real" else " (portada)"
+        marca = MARCA.get(notas[0].ranking, " (portada)")
         partes.append(f"*{medio}*{marca}")
         for i, a in enumerate(notas, 1):
             partes.append(f"{i}. {a.titulo}\n{a.url}")
@@ -53,7 +62,7 @@ def texto_telegram(digest: Digest) -> str:
         "",
     ]
     for medio, notas in digest.por_medio.items():
-        marca = "" if notas[0].ranking == "real" else " (portada)"
+        marca = MARCA.get(notas[0].ranking, " (portada)")
         partes.append(f"<b>{e(medio)}</b>{e(marca)}")
         for i, a in enumerate(notas, 1):
             partes.append(f"{i}. {e(a.titulo)}\n{e(a.url)}")
@@ -90,12 +99,10 @@ def pagina_html(digest: Digest) -> str:
     e = html.escape
     filas = []
     for medio, notas in digest.por_medio.items():
-        real = notas[0].ranking == "real"
-        etiqueta = (
-            '<span class="tag real">ranking del diario</span>'
-            if real
-            else '<span class="tag proxy">orden de portada</span>'
+        clase, texto_tag = ETIQUETA_HTML.get(
+            notas[0].ranking, ETIQUETA_HTML["portada"]
         )
+        etiqueta = f'<span class="tag {clase}">{texto_tag}</span>'
         items = "\n".join(
             f'<li><a href="{e(a.url)}" target="_blank" rel="noopener">{e(a.titulo)}</a></li>'
             for a in notas

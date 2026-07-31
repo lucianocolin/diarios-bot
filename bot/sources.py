@@ -8,6 +8,7 @@ diarios exponen sus métricas de audiencia.
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from dataclasses import dataclass, asdict
@@ -15,6 +16,8 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
+
+log = logging.getLogger(__name__)
 
 UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -244,18 +247,33 @@ def lagaceta(limite: int) -> list[Articulo]:
 
 
 def eltucumano(limite: int) -> list[Articulo]:
-    soup = _soup("https://www.eltucumano.com/")
-    cajas = soup.find_all("div", class_=re.compile(r"row-mas-leida"))
-    if not cajas:
-        raise SinResultados("El Tucumano: no apareció el módulo de más leídas")
-    # El módulo llega partido en varios bloques; se juntan para conservar el orden.
-    wrap = BeautifulSoup("<div></div>", "lxml").div
-    for c in cajas:
-        wrap.append(c)
-    arts = _recolectar(wrap, "https://www.eltucumano.com/", "El Tucumano", "real", limite)
-    if not arts:
-        raise SinResultados("El Tucumano: contenedor vacío")
-    return arts
+    """Ranking real desde la portada, con el RSS como respaldo.
+
+    La home devuelve 403 a las IPs de datacenter (entre ellas las de GitHub
+    Actions), así que desde el workflow el camino normal no sirve. El `/rss` sí
+    responde, pero viene en orden cronológico y no por lecturas: por eso las
+    notas que salen de ahí se etiquetan `recientes` y no `real`.
+    """
+    try:
+        soup = _soup("https://www.eltucumano.com/")
+        cajas = soup.find_all("div", class_=re.compile(r"row-mas-leida"))
+        if cajas:
+            # El módulo llega partido en bloques; se juntan para conservar el orden.
+            wrap = BeautifulSoup("<div></div>", "lxml").div
+            for c in cajas:
+                wrap.append(c)
+            arts = _recolectar(
+                wrap, "https://www.eltucumano.com/", "El Tucumano", "real", limite
+            )
+            if arts:
+                return arts
+        log.warning("El Tucumano: sin módulo de más leídas, se cae al RSS")
+    except requests.HTTPError as e:
+        log.warning("El Tucumano: la portada devolvió %s, se cae al RSS", e.response.status_code)
+
+    return _desde_rss(
+        "https://www.eltucumano.com/rss", "El Tucumano", limite, ranking="recientes"
+    )
 
 
 # --------------------------------------------------------------------------

@@ -7,6 +7,9 @@ on:
     # semana como cuando era de lunes a viernes.
     - cron: "0 17 * * *"  # 14:00 ART
     - cron: "0 0 * * *"   # 21:00 ART del día anterior (00:00 UTC)
+    # TEMPORAL: prueba del disparo automático, 22:00 ART del 30/7/2026.
+    # Al ser por día y mes, si no se saca vuelve a dispararse recién en 2027.
+    - cron: "0 1 31 7 *"
   workflow_dispatch:
     inputs:
       dry_run:

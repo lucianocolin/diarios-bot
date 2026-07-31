@@ -1,19 +1,20 @@
 # Digest de diarios argentinos
 
-Junta 50 notas de los 10 diarios más leídos del país, las manda por Telegram a
-las 14 y a las 21 de lunes a viernes, y publica además una página con el listado.
+Junta 65 notas de los 10 diarios más leídos del país y de los 3 principales de
+Tucumán, las manda por Telegram a las 14 y a las 21 todos los días, y publica
+además una página con el listado.
 
 Página: <https://lucianocolin.github.io/diarios-bot/>
 
 ## Lo primero que hay que saber: qué es "más leídas" acá
 
-De los 10 diarios, **solo 3 publican su ranking real de lecturas**:
+De los 13 diarios, **solo 5 publican su ranking real de lecturas**:
 
 | Ranking real (lo que el diario mide) | Orden de portada (proxy) |
 | --- | --- |
-| La Nación, Perfil, Ámbito | Infobae, Clarín, TN, Página/12, La Voz, El Cronista, C5N |
+| La Nación, Perfil, Ámbito, La Gaceta, El Tucumano | Infobae, Clarín, TN, Página/12, La Voz, El Cronista, C5N, Tucumán a las 7 |
 
-Los otros siete no exponen sus métricas de audiencia por ningún lado: ni RSS, ni
+Los otros ocho no exponen sus métricas de audiencia por ningún lado: ni RSS, ni
 API pública, ni un módulo en el HTML (se verificó también renderizando la home
 con un navegador headless, por si lo cargaban por JavaScript). Para esos, el bot
 usa **la jerarquía que el propio diario le da a cada nota en la portada**, que es
@@ -25,7 +26,18 @@ muestra con un cartelito por diario, así nadie confunde una cosa con la otra.
 Tampoco existe un ranking cruzado entre diarios: nadie publica números absolutos
 de lecturas, así que no hay forma honesta de decir que la nota #1 de Clarín fue
 más leída que la #1 de Infobae. Por eso el digest son **5 notas por diario,
-agrupadas por medio**, y no una lista única del 1 al 50.
+agrupadas por medio**, y no una lista única del 1 al 65.
+
+## Los diarios de Tucumán
+
+Van tres: **La Gaceta** y **El Tucumano**, que publican su propio ranking de más
+leídas, y **Tucumán a las 7**, que no lo publica y entra por orden de portada.
+
+Dos que quedaron afuera:
+
+- **Contexto**: excluido a pedido.
+- **Primerafuente**: el dominio `primerafuente.com` no resuelve en DNS, ni con
+  `www` ni sin él. Si vuelve a levantar, es agregar un extractor más.
 
 ## Probarlo ahora mismo
 
@@ -42,13 +54,13 @@ nada. Abrí el HTML en el navegador para ver cómo le va a llegar.
 Se intentó primero con WhatsApp y no da: un envío programado a las 14 cae fuera
 de la ventana de 24 h desde el último mensaje de la persona, así que tiene que
 salir como plantilla aprobada por Meta, y **una plantilla topea en 1024
-caracteres**. El digest ronda los 12.400: entran unas 4 notas de 50. Encima los
+caracteres**. El digest ronda los 16.200: entran unas 4 notas de 65. Encima los
 valores de las variables no admiten saltos de línea, así que saldrían todas
 pegadas en un renglón. Acortar los links no alcanza — aun con links de 20
-caracteres serían unos 6.000.
+caracteres serían unos 7.800.
 
 Telegram no tiene plantillas, ni aprobación, ni ventana de 24 h, y permite 4096
-caracteres por mensaje. El digest entero sale en 4 mensajes con los títulos y los
+caracteres por mensaje. El digest entero sale en 5 mensajes con los títulos y los
 links adentro, que es lo que se quería.
 
 El código de WhatsApp quedó en `bot/whatsapp.py` y se puede usar con
@@ -206,7 +218,7 @@ Es justamente el problema que resuelve Telegram.
 
 Los extractores están en `bot/sources.py`, uno por diario. Si un medio rediseña
 la portada, ese extractor tira `SinResultados`, el bot lo registra en `fallidos`
-y **completa las 50 notas pidiéndole más a los otros diarios**, así el envío no
+y **completa el total pidiéndole más a los otros diarios**, así el envío no
 se cae por un solo medio. La página muestra abajo cuáles quedaron sin datos.
 
 Para probar uno solo:

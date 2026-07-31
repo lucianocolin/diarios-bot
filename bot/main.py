@@ -105,7 +105,12 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("MODO_ENVIO", "plantilla"),
         help="solo para --canal whatsapp: libre requiere ventana de 24 h abierta",
     )
-    p.add_argument("--notas", type=int, default=50, help="cantidad total de notas")
+    p.add_argument(
+        "--notas",
+        type=int,
+        default=None,
+        help="cantidad total de notas (por defecto, 5 por diario)",
+    )
     p.add_argument(
         "--desde-json",
         action="store_true",

@@ -13,8 +13,10 @@ from .sources import DIARIOS, SUPLENTES, Articulo, _canonical
 log = logging.getLogger(__name__)
 
 TZ = ZoneInfo("America/Argentina/Buenos_Aires")
-TOTAL_OBJETIVO = 50
 POR_DIARIO = 5
+# Se deriva de la cantidad de diarios: si el total quedara fijo, sumar un medio
+# nuevo lo dejaría afuera por el recorte final, y encima en silencio.
+TOTAL_OBJETIVO = len(DIARIOS) * POR_DIARIO
 # Cuánto de más se le puede pedir a un diario para tapar el hueco de otro.
 TOPE_POR_DIARIO = 10
 
@@ -45,13 +47,14 @@ def _traer(nombre: str, fn, limite: int) -> tuple[str, list[Articulo] | Exceptio
         return nombre, e
 
 
-def recolectar(por_diario: int = POR_DIARIO, objetivo: int = TOTAL_OBJETIVO) -> Digest:
+def recolectar(por_diario: int = POR_DIARIO, objetivo: int | None = None) -> Digest:
     """Trae `por_diario` notas de cada medio y completa hasta `objetivo`.
 
     Si un diario devuelve menos de lo pedido (o se cae), se le piden notas extra
     a los que sí respondieron, para no bajar del total. Los medios suplentes solo
     entran si sigue faltando.
     """
+    objetivo = objetivo or TOTAL_OBJETIVO
     resultados: dict[str, list[Articulo]] = {}
     fallidos: dict[str, str] = {}
 

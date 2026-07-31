@@ -232,6 +232,32 @@ def minutouno(limite: int) -> list[Articulo]:
     return arts
 
 
+def lagaceta(limite: int) -> list[Articulo]:
+    soup = _soup("https://www.lagaceta.com.ar/")
+    caja = soup.find("div", class_=re.compile(r"\branking\b"))
+    if caja is None:
+        raise SinResultados("La Gaceta: no apareció el módulo de ranking")
+    arts = _recolectar(caja, "https://www.lagaceta.com.ar/", "La Gaceta", "real", limite)
+    if not arts:
+        raise SinResultados("La Gaceta: contenedor de ranking vacío")
+    return arts
+
+
+def eltucumano(limite: int) -> list[Articulo]:
+    soup = _soup("https://www.eltucumano.com/")
+    cajas = soup.find_all("div", class_=re.compile(r"row-mas-leida"))
+    if not cajas:
+        raise SinResultados("El Tucumano: no apareció el módulo de más leídas")
+    # El módulo llega partido en varios bloques; se juntan para conservar el orden.
+    wrap = BeautifulSoup("<div></div>", "lxml").div
+    for c in cajas:
+        wrap.append(c)
+    arts = _recolectar(wrap, "https://www.eltucumano.com/", "El Tucumano", "real", limite)
+    if not arts:
+        raise SinResultados("El Tucumano: contenedor vacío")
+    return arts
+
+
 # --------------------------------------------------------------------------
 # Extractores con proxy de PORTADA (el medio no publica su ranking)
 # --------------------------------------------------------------------------
@@ -311,7 +337,19 @@ def lavoz(limite: int) -> list[Articulo]:
     return arts
 
 
-# Orden = orden en que aparecen en el digest.
+def tucumanalas7(limite: int) -> list[Articulo]:
+    soup = _soup("https://www.tucumanalas7.com.ar/")
+    cuerpo = _cuerpo(soup)
+    arts = _recolectar(
+        cuerpo, "https://www.tucumanalas7.com.ar/", "Tucumán a las 7", "portada", limite
+    )
+    if not arts:
+        raise SinResultados("Tucumán a las 7: la portada no devolvió notas")
+    return arts
+
+
+# Orden = orden en que aparecen en el digest. Primero los nacionales, después
+# los de Tucumán, así el bloque provincial queda junto y al final.
 DIARIOS: dict[str, callable] = {
     "infobae": infobae,
     "clarin": clarin,
@@ -323,6 +361,9 @@ DIARIOS: dict[str, callable] = {
     "lavoz": lavoz,
     "cronista": cronista,
     "c5n": c5n,
+    "lagaceta": lagaceta,
+    "eltucumano": eltucumano,
+    "tucumanalas7": tucumanalas7,
 }
 
 # Suplentes para cubrir un medio caído sin bajar de 50 notas.

@@ -83,7 +83,10 @@ En *Settings → Secrets and variables → Actions*:
 | Secret | Qué es |
 | --- | --- |
 | `TELEGRAM_TOKEN` | El token de BotFather |
-| `TELEGRAM_CHAT_ID` | El chat_id del paso 2 |
+| `TELEGRAM_CHAT_ID` | El chat_id del paso 2. Admite varios separados por coma |
+
+Con varios destinatarios, si uno bloqueó al bot los demás igual reciben el
+digest; la corrida termina en error para que se note en el historial.
 
 ### 4. Activar GitHub Pages
 

@@ -49,11 +49,25 @@ def _digest_desde_json() -> Digest:
 def _enviar(digest: Digest, args) -> None:
     """Manda el digest por el canal elegido."""
     if args.canal == "telegram":
-        destino = cfg("TELEGRAM_CHAT_ID")
+        # TELEGRAM_CHAT_ID admite varios ids separados por coma.
+        destinos = [d.strip() for d in cfg("TELEGRAM_CHAT_ID").split(",") if d.strip()]
         cfg("TELEGRAM_TOKEN")  # falla acá y no a mitad del envío
         trozos = render.trozos(render.texto_telegram(digest), limite=telegram.LIMITE - 96)
-        log.info("Enviando %d mensajes por Telegram...", len(trozos))
-        telegram.enviar(destino, trozos)
+        log.info(
+            "Enviando %d mensajes por Telegram a %d destinatario(s)...",
+            len(trozos),
+            len(destinos),
+        )
+        fallidos = []
+        for d in destinos:
+            try:
+                telegram.enviar(d, trozos)
+            except ErrorDeEnvio as e:
+                # Un destinatario que bloqueó al bot no debe voltear a los otros.
+                log.error("Falló el envío a %s: %s", d, e)
+                fallidos.append(d)
+        if fallidos:
+            raise ErrorDeEnvio(f"No se pudo enviar a: {', '.join(fallidos)}")
         return
 
     destino = cfg("WHATSAPP_DESTINO")

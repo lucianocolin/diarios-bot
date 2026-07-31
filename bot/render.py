@@ -44,6 +44,12 @@ def texto(digest: Digest) -> str:
         for i, a in enumerate(notas, 1):
             partes.append(f"{i}. {a.titulo}\n{a.url}")
         partes.append("")
+    if digest.tendencias:
+        partes.append("*Tendencias en X (Argentina)*")
+        partes.append("_Cada link abre la búsqueda filtrada a videos_")
+        for tnd in digest.tendencias:
+            partes.append(f"{tnd.posicion}. {tnd.termino}\n{tnd.url}")
+        partes.append("")
     if digest.fallidos:
         partes.append(f"_Sin datos: {', '.join(digest.fallidos)}_")
     return "\n".join(partes).strip()
@@ -66,6 +72,12 @@ def texto_telegram(digest: Digest) -> str:
         partes.append(f"<b>{e(medio)}</b>{e(marca)}")
         for i, a in enumerate(notas, 1):
             partes.append(f"{i}. {e(a.titulo)}\n{e(a.url)}")
+        partes.append("")
+    if digest.tendencias:
+        partes.append("<b>Tendencias en X (Argentina)</b>")
+        partes.append("<i>Cada link abre la búsqueda filtrada a videos</i>")
+        for tnd in digest.tendencias:
+            partes.append(f"{tnd.posicion}. {e(tnd.termino)}\n{e(tnd.url)}")
         partes.append("")
     if digest.fallidos:
         partes.append(f"<i>Sin datos: {e(', '.join(digest.fallidos))}</i>")
@@ -109,6 +121,17 @@ def pagina_html(digest: Digest) -> str:
         )
         filas.append(
             f'<section><h2>{e(medio)} {etiqueta}</h2><ol>{items}</ol></section>'
+        )
+
+    if digest.tendencias:
+        items = "\n".join(
+            f'<li><a href="{e(tnd.url)}" target="_blank" rel="noopener">{e(tnd.termino)}</a></li>'
+            for tnd in digest.tendencias
+        )
+        filas.append(
+            '<section><h2>Tendencias en X '
+            '<span class="tag proxy">para buscar videos</span></h2>'
+            f'<ol>{items}</ol></section>'
         )
 
     faltantes = (

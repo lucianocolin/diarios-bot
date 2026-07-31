@@ -9,6 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from .sources import DIARIOS, SUPLENTES, Articulo, _canonical
+from .trends import Tendencia, tendencias_ar
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class Digest:
     generado: datetime
     articulos: list[Articulo]
     fallidos: dict[str, str] = field(default_factory=dict)
+    tendencias: list[Tendencia] = field(default_factory=list)
 
     @property
     def por_medio(self) -> dict[str, list[Articulo]]:
@@ -109,4 +111,11 @@ def recolectar(por_diario: int = POR_DIARIO, objetivo: int | None = None) -> Dig
             vistos.add(clave)
             articulos.append(a)
 
-    return Digest(datetime.now(TZ), articulos[:objetivo], fallidos)
+    # Las tendencias son un extra: si la fuente se cae, el digest sale igual.
+    try:
+        tendencias = tendencias_ar()
+    except Exception as e:  # noqa: BLE001
+        log.warning("Tendencias: no se pudieron traer (%s)", e)
+        tendencias = []
+
+    return Digest(datetime.now(TZ), articulos[:objetivo], fallidos, tendencias)

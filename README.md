@@ -39,6 +39,24 @@ Dos que quedaron afuera:
 - **Primerafuente**: el dominio `primerafuente.com` no resuelve en DNS, ni con
   `www` ni sin él. Si vuelve a levantar, es agregar un extractor más.
 
+## Tendencias de X, para buscar videos virales
+
+El digest cierra con las 10 tendencias de X en Argentina, cada una linkeada a la
+búsqueda de X ya filtrada a videos (`filter:videos -filter:replies`, ordenada por
+engagement). Sirve como punto de partida para encontrar el video viral del tema.
+
+**El bot no toca la API de X ni scrapea x.com**: solo arma la URL de búsqueda.
+Quien hace la búsqueda es quien toca el link. Esto es a propósito — X eliminó el
+tier gratis en febrero de 2026 y hoy leer posts se paga por uso (US$0,005 por
+post), así que traer los videos directamente costaría unos US$30 al mes.
+
+Los temas salen de `trends24.in`, con `getdaytrends.com` de respaldo. Si las dos
+fallan, el digest sale igual sin ese bloque: las tendencias son un extra, no
+pueden voltear el envío.
+
+No hay granularidad por provincia: la fuente solo publica tendencias a nivel
+país, así que no se puede filtrar a Tucumán.
+
 ## Probarlo ahora mismo
 
 ```bash

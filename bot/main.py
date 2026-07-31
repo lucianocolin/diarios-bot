@@ -26,6 +26,7 @@ from . import render, telegram, whatsapp
 from .aggregate import Digest, recolectar
 from .config import ConfigFaltante, ErrorDeEnvio, cfg
 from .sources import Articulo
+from .trends import Tendencia
 
 log = logging.getLogger("diarios-bot")
 
@@ -43,6 +44,7 @@ def _digest_desde_json() -> Digest:
         generado=datetime.fromisoformat(datos["generado"]),
         articulos=[Articulo(**a) for a in datos["articulos"]],
         fallidos=datos.get("fallidos") or {},
+        tendencias=[Tendencia(**x) for x in datos.get("tendencias") or []],
     )
 
 
@@ -157,6 +159,7 @@ def main(argv: list[str] | None = None) -> int:
                 "generado": digest.generado.isoformat(),
                 "fallidos": digest.fallidos,
                 "articulos": [a.dict() for a in digest.articulos],
+                "tendencias": [t.dict() for t in digest.tendencias],
             },
             ensure_ascii=False,
             indent=2,

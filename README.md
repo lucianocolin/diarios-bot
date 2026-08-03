@@ -1,8 +1,8 @@
 # Digest de diarios argentinos
 
 Junta 65 notas de los 10 diarios más leídos del país y de los 3 principales de
-Tucumán, las manda por Telegram a las 14 y a las 21 todos los días, y publica
-además una página con el listado.
+Tucumán, las manda por Telegram dos veces por día —el digest suele caer cerca de
+las 14 y de las 21— y publica además una página con el listado.
 
 Página: <https://lucianocolin.github.io/diarios-bot/>
 
@@ -204,13 +204,22 @@ Y como *Variables* (opcionales, tienen default):
 
 Argentina es UTC-3 todo el año, así que los cron del workflow son:
 
-- `0 17 * * *` → 14:00 ART, todos los días.
-- `0 0 * * *` → 21:00 ART, todos los días. En UTC cae a las 00:00 del día
-  siguiente, pero al correr los 7 días el corrimiento no cambia nada.
+- `0 15 * * *` → **12:00 ART**, todos los días.
+- `30 21 * * *` → **18:30 ART**, todos los días.
 
-El scheduler de GitHub Actions no es puntual: suele disparar con 5 a 15 minutos
-de demora, y más si la plataforma está cargada. Si necesitás precisión al
-minuto, conviene un VPS con cron.
+**Los cron están adelantados a propósito y no hay que "corregirlos".** El
+scheduler de GitHub Actions no es puntual: se suelen citar 5 a 15 minutos de
+demora, pero acá se midió una corrida que salió **25 minutos tarde**, y la
+demora crece cuando la plataforma está cargada. Los horarios a los que se quiere
+recibir el digest son las 14 y las 21; pidiéndolo a las 12 y a las 18:30 queda
+margen de sobra para que caiga cerca de esas horas.
+
+El precio de ese margen es que las notas son las más leídas **al momento en que
+corre el bot**, no al momento en que llega el mensaje. Si en una corrida el
+scheduler es puntual, el digest llega a las 12 con las notas de las 12.
+
+Si hiciera falta precisión al minuto, la única salida real es un disparador
+externo (un VPS con cron, o cualquier servicio que pegue un `workflow_dispatch`).
 
 ## Por qué hay un workflow de keepalive
 

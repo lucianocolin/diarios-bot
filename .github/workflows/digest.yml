@@ -5,13 +5,13 @@ on:
     # Argentina es UTC-3 todo el año (no tiene horario de verano).
     # Todos los días: al correr los 7 días ya no hace falta correr el día de la
     # semana como cuando era de lunes a viernes.
-    - cron: "0 17 * * *"  # 14:00 ART
-    - cron: "0 0 * * *"   # 21:00 ART del día anterior (00:00 UTC)
-    # TEMPORALES: prueba del disparo automático del 30/7/2026. Al ser por día y
-    # mes, si no se sacan vuelven a dispararse recién en 2027.
-    - cron: "0 1 31 7 *"   # 22:00 ART — no disparó: se pusheó 8 min antes
-    - cron: "15 2 31 7 *"  # 23:15 ART
-    - cron: "45 2 31 7 *"  # 23:45 ART — margen de 40 min por si 23:15 es corto
+    #
+    # Los horarios están adelantados a propósito. El scheduler de GitHub dispara
+    # tarde (se midió una demora de 25 min, y puede ser más si la plataforma
+    # está cargada), así que se pide antes para que el mensaje caiga cerca de
+    # las 14 y de las 21, que son las horas a las que se quiere recibirlo.
+    - cron: "0 15 * * *"   # 12:00 ART
+    - cron: "30 21 * * *"  # 18:30 ART
   workflow_dispatch:
     inputs:
       dry_run:
